@@ -1,5 +1,7 @@
+version: "3"
+
 services:
-    # image project
+    # App
     app:
         build:
             context: .
@@ -33,14 +35,13 @@ services:
         environment:
             MYSQL_DATABASE: ${DB_DATABASE:-laravel}
             MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
-            MYSQL_PASSWORD: ${DB_PASSWORD:-userpass}
-            MYSQL_USER: ${DB_USERNAME:-username}
         volumes:
             - ./.docker/mysql/dbdata:/var/lib/mysql
         ports:
             - "3300:3306"
         networks:
             - laravel
+
 
     # PHPMyAdmin
     phpmyadmin:
@@ -52,22 +53,35 @@ services:
         environment:
             PMA_HOST: db
             PMA_PORT: 3306
-            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-root}
+            MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
         networks:
             - laravel
 
     # MailHog
     mailhog:
         image: mailhog/mailhog
-        logging:
-            driver: "none" # disable saving logs
         ports:
             - "1025:1025" # smtp server
             - "8025:8025" # web ui
         networks:
             - laravel
 
-    # redis
+    # Queue
+    queue:
+        build:
+            context: ./
+            dockerfile: Dockerfile
+        restart: unless-stopped
+        command: "php artisan queue:work"
+        volumes:
+            - ./:/var/www
+        depends_on:
+            - redis
+            - app
+        networks:
+            - laravel
+
+    # Redis
     redis:
         image: redis:latest
         networks:
@@ -76,3 +90,4 @@ services:
 networks:
     laravel:
         driver: bridge
+        name: laravel
